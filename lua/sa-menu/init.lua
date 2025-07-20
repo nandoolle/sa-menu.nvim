@@ -10,7 +10,6 @@ local function get_plugin_root()
 	path = vim.fn.fnamemodify(path, ":p:h:h:h")
 	return path
 end
-
 local function get_sound_command()
 	local os_name = vim.loop.os_uname().sysname
 	if os_name == "Darwin" then
@@ -21,7 +20,7 @@ local function get_sound_command()
 		elseif vim.fn.executable("paplay") == 1 then
 			return { "paplay" }
 		elseif vim.fn.executable("play") == 1 then
-			return { "play", "-q" }
+			return { "paplay", "-q" }
 		end
 	else
 		return { "play" }
@@ -38,7 +37,7 @@ local function process_queue()
 	is_playing = true
 	local sound_path = table.remove(sound_queue, 1)
 	local cmd = get_sound_command()
-	
+
 	if cmd then
 		local full_cmd = vim.list_extend(vim.deepcopy(cmd), { sound_path })
 		vim.fn.jobstart(full_cmd, {
@@ -55,13 +54,13 @@ end
 local function play_sound(sound_name)
 	local current_time = vim.loop.now()
 	local last_time = last_sound_time[sound_name] or 0
-	
+
 	if current_time - last_time < debounce_time then
 		return
 	end
-	
+
 	last_sound_time[sound_name] = current_time
-	
+
 	local plugin_root = get_plugin_root()
 	local sound_path = plugin_root .. "/samps/" .. sound_name .. ".wav"
 
@@ -77,11 +76,11 @@ end
 
 function M.setup(opts)
 	opts = opts or {}
-	
+
 	if opts.debounce_time then
 		debounce_time = opts.debounce_time
 	end
-	
+
 	if opts.enabled == false then
 		return
 	end
@@ -112,4 +111,3 @@ function M.setup(opts)
 end
 
 return M
-
