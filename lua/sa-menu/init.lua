@@ -1,9 +1,8 @@
 local M = {}
 
-local sound_queue = {}
-local is_playing = false
+local current_sound_job = nil
 local last_sound_time = {}
-local debounce_time = 150
+local debounce_time = 50
 
 local function get_plugin_root()
 	local path = debug.getinfo(1, "S").source:sub(2)
@@ -28,29 +27,6 @@ local function get_sound_command()
 	return nil
 end
 
-local function process_queue()
-	if #sound_queue == 0 then
-		is_playing = false
-		return
-	end
-
-	is_playing = true
-	local sound_path = table.remove(sound_queue, 1)
-	local cmd = get_sound_command()
-
-	if cmd then
-		local full_cmd = vim.list_extend(vim.deepcopy(cmd), { sound_path })
-		vim.fn.jobstart(full_cmd, {
-			detach = false,
-			on_exit = function()
-				vim.defer_fn(process_queue, 10)
-			end,
-		})
-	else
-		is_playing = false
-	end
-end
-
 local function play_sound(sound_name)
 	local current_time = vim.loop.now()
 	local last_time = last_sound_time[sound_name] or 0
@@ -61,15 +37,24 @@ local function play_sound(sound_name)
 
 	last_sound_time[sound_name] = current_time
 
+	if current_sound_job then
+		vim.fn.jobstop(current_sound_job)
+		current_sound_job = nil
+	end
+
 	local plugin_root = get_plugin_root()
 	local sound_path = plugin_root .. "/samps/" .. sound_name .. ".wav"
 
 	if vim.fn.filereadable(sound_path) == 1 then
-		if #sound_queue < 3 then
-			table.insert(sound_queue, sound_path)
-			if not is_playing then
-				process_queue()
-			end
+		local cmd = get_sound_command()
+		if cmd then
+			local full_cmd = vim.list_extend(vim.deepcopy(cmd), { sound_path })
+			current_sound_job = vim.fn.jobstart(full_cmd, {
+				detach = false,
+				on_exit = function()
+					current_sound_job = nil
+				end,
+			})
 		end
 	end
 end
